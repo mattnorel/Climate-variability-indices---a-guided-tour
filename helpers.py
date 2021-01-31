@@ -2,6 +2,7 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.ticker import MaxNLocator
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 import seaborn as sns
@@ -105,9 +106,9 @@ def phase_table(ts, phase="El Nino", abs_threshold=.5, minlen=5):
                               'Maximum value',
                               'Time at maximum',
                               'Cumulative sum'])
-    if phase=='El Nino':
+    if phase=='El Nino' or phase=='positive phase':
         episodes, _, _ = warm_cold_phase(ts, abs_threshold, minlen)
-    elif phase=='La Nina':
+    elif phase=='La Nina' or phase=='negative phase':
         _, episodes, _ = warm_cold_phase(ts, abs_threshold, minlen)
     for i, episode in enumerate(episodes):    
         tmp_df = pd.DataFrame({'# of {}'.format(phase):
@@ -169,21 +170,19 @@ def data_to_numpy(data):
         d.append(i)
     return(d)
 
-def plot_enso_variability(data, is_el_nino, name, y_label, save_as=None, figure=(14.5,6)):
+def plot_variability(data, phases_name, name, y_label, save_as=None, figure=(14.5,6)):
     
     x = np.arange(0, len(data))
     coef, b = np.polyfit(x, data,1)    
-    
-    plt.figure(figsize=figure, dpi=80)
-    ax = plt.plot(data, "o", linestyle='--')
-    plt.plot(x, data, 'yo', x, coef*x+b, '--r')
+
+    fig, ax = plt.subplots(figsize=figure, dpi=80)
+    ax.plot(data, "o", linestyle='--')
+    ax.plot(x, data, 'yo', x, coef*x+b, '--r')
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     
     plt.title(name)
     plt.ylabel(y_label)
-    if is_el_nino:
-        plt.xlabel("El Niño phases")
-    else:
-        plt.xlabel("La Niña phases")
+    plt.xlabel(phases_name)
 
     if save_as is not None:
         plt.savefig(save_as.format(name))
@@ -286,12 +285,11 @@ def plot_phases_nao(ts, name, months_len, abs_tsh=.5, minlen=5, save_as=None, fi
     warms_idxs = np.array([True if e in warms_cnct else False for e in ts.index])
     colds_idxs = np.array([True if e in colds_cnct else False for e in ts.index])
     
-    plt.fill_between(ts.index, abs(abs_tsh), ts.values, where=ts.values>abs(abs_tsh), 
-                 facecolor='red', interpolate=True)
-    plt.fill_between(ts.index, -abs(abs_tsh), ts.values, where=ts.values<-abs(abs_tsh), 
-                 facecolor='blue', interpolate=True)
-    
-    
+    plt.fill_between(ts.index, abs(abs_tsh), ts.values, where=(ts.values > abs(abs_tsh)) * warms_idxs,
+                     facecolor='red', interpolate=True)
+    plt.fill_between(ts.index, -abs(abs_tsh), ts.values, where=(ts.values < -abs(abs_tsh)) * colds_idxs,
+                     facecolor='blue', interpolate=True)
+
     red_patch = mpatches.Patch(color='red', label='Positive phase')
     blue_patch = mpatches.Patch(color='blue', label='Negative phase')
     plt.legend(handles=[red_patch, blue_patch])
